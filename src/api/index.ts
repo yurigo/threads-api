@@ -1,11 +1,34 @@
 import { Hono } from 'hono';
-import { fetchThreadReplies, fetchUserProfile, fetchUserProfileThreads } from '../lib/fetch';
+import {
+  fetchThreadReplies,
+  fetchUserProfile,
+  fetchUserProfileThreads,
+  fetchUserIdByName,
+} from '../lib/fetch';
 
 const port = +(Bun.env.PORT ?? 3000);
 
 console.log('Initializing API server on port', port);
 
 const app = new Hono();
+
+const extractUserID = async (context, next) => {
+  const ID = context.req.param('ID');
+
+  // If the userName is missing, return a "Missing userId" error response with status code 400
+  if (!ID) return context.text('Missing userId or @userName', 400);
+
+  context.set('USER_ID', ID);
+
+  if (ID.startsWith('@')) {
+    const userName = ID.slice(1);
+    // context.set('USER_ID', '8242141302');
+    const userID = await fetchUserIdByName({ userName });
+    context.set('USER_ID', userID);
+  }
+
+  await next();
+};
 
 // Endpoint to get user profiles based on userName
 app.get('/api/users', async (context) => {
@@ -28,20 +51,21 @@ app.get('/api/users', async (context) => {
 });
 
 // Endpoint to get a specific user profile based on userId
-app.get('/api/users/:ID', async (context) => {
+app.get('/api/users/:ID', extractUserID, async (context) => {
   try {
-    // Extract the userId from the request parameters
-    const ID = context.req.param('ID');
+    // // Extract the userId from the request parameters
+    // const ID = context.req.param('ID');
+    // // If the userName is missing, return a "Missing userId" error response with status code 400
+    // if (!ID) return context.text('Missing userId or @userName', 400);
 
-    // If the userName is missing, return a "Missing userId" error response with status code 400
-    if (!ID) return context.text('Missing userId or @userName', 400);
+    // if (ID.startsWith('@')) {
+    //   const userName = ID.slice(1);
+    //   // Fetch the user profile using the provided userName
+    //   const data = await fetchUserProfile({ userName });
+    //   return context.json(data);
+    // }
 
-    if (ID.startsWith('@')) {
-      const userName = ID.slice(1);
-      // Fetch the user profile using the provided userName
-      const data = await fetchUserProfile({ userName });
-      return context.json(data);
-    }
+    const ID: string = context.get('USER_ID') as string;
 
     // Fetch the user profile using the provided userId
     const data = await fetchUserProfile({ userId: ID });
@@ -75,20 +99,22 @@ app.get('/api/threads/:threadId/replies', async (context) => {
 });
 
 // Endpoint to get user profile threads
-app.get('/api/users/:ID/threads', async (context) => {
+app.get('/api/users/:ID/threads', extractUserID, async (context) => {
   try {
-    // Extract the userId from the request parameters
-    const ID = context.req.param('ID');
+    // // Extract the userId from the request parameters
+    // const ID = context.req.param('ID');
 
-    // If the userName is missing, return a "Missing userId" error response with status code 400
-    if (!ID) return context.text('Missing userId or @userName', 400);
+    // // If the userName is missing, return a "Missing userId" error response with status code 400
+    // if (!ID) return context.text('Missing userId or @userName', 400);
 
-    if (ID.startsWith('@')) {
-      const userName = ID.slice(1);
-      // Fetch the user profile threads using the provided userName
-      const data = await fetchUserProfileThreads({ userName });
-      return context.json(data);
-    }
+    // if (ID.startsWith('@')) {
+    //   const userName = ID.slice(1);
+    //   // Fetch the user profile threads using the provided userName
+    //   const data = await fetchUserProfileThreads({ userName });
+    //   return context.json(data);
+    // }
+
+    const ID = context.get('USER_ID') as string;
 
     // Fetch the user profile threads using the provided userId
     const data = await fetchUserProfileThreads({ userId: ID });
